@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -42,27 +43,48 @@ func main() {
 	sqsClient := sqs.New(sess)
 
 	// Create a new SNS topic
-	topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
-		Name: aws.String("test-topic"),
-	})
-	if err != nil {
-		log.Fatalf("failed to create SNS topic: %v", err)
-	}
+	// topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
+	// 	Name: aws.String("test-topic"),
+	// })
+	// if err != nil {
+	// 	log.Fatalf("failed to create SNS topic: %v", err)
+	// }
+	// Subscribe the SQS queue to the SNS topic
+	// _, err = snsClient.Subscribe(&sns.SubscribeInput{
+	// 	Protocol: aws.String("sqs"),
+	// 	TopicArn: aws.String(topicARN), //topic.TopicArn,
+	// 	Endpoint: queue.QueueUrl,
+	// })
+
+	// fmt.Printf("Topic ARN is: %s\n", *topic.TopicArn)
+
+	topicName := "test-topic"
+	queueName := "test-queue"
 
 	// Create a new SQS queue
 	queue, err := sqsClient.CreateQueue(&sqs.CreateQueueInput{
-		QueueName: aws.String("test-queue"),
+		QueueName: aws.String(queueName),
 	})
 	if err != nil {
 		log.Fatalf("failed to create SQS queue: %v", err)
 	}
 
+	topicARN := fmt.Sprintf("arn:aws:sns:us-west-2:000000000000:%s", topicName) //arn:aws:sns:us-west-2:000000000000:test-topic
+
+	// Create an SQS endpoint ARN
+	// queueARN := fmt.Sprintf("arn:aws:sns:us-west-2:000000000000: %s\n", queueName)
+
+	queueARN := strings.Replace(topicARN, topicName, queueName, 1)
+
 	// Subscribe the SQS queue to the SNS topic
 	_, err = snsClient.Subscribe(&sns.SubscribeInput{
+		Endpoint: aws.String(queueARN),
 		Protocol: aws.String("sqs"),
-		TopicArn: topic.TopicArn,
-		Endpoint: queue.QueueUrl,
+		TopicArn: aws.String(topicARN),
 	})
+
+	fmt.Printf("Endpoint is: %s\n", *queue.QueueUrl)
+
 	if err != nil {
 		log.Fatalf("failed to subscribe to SNS topic: %v", err)
 	}
